@@ -1,0 +1,38 @@
+{
+  "name": "loopa-agent-action",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Provider-neutral repository analysis for Loopa",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist --minify --source-map",
+    "check:dist": "npm run build && git diff --exit-code -- dist",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "ci": "npm run lint && npm test && npm run check:dist"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@ai-sdk/anthropic": "^3.0.81",
+    "@ai-sdk/azure": "^3.0.70",
+    "@ai-sdk/fireworks": "^2.0.67",
+    "@ai-sdk/google": "^3.0.80",
+    "@ai-sdk/openai": "^3.0.68",
+    "@ai-sdk/openai-compatible": "^2.0.48",
+    "@openrouter/ai-sdk-provider": "^2.2.3",
+    "ai": "^6.0.197",
+    "fast-glob": "^3.3.3",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vercel/ncc": "^0.44.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://getloopa.com/schemas/github-action-report-v1.json",
+  "title": "Loopa GitHub Action report v1",
+  "type": "object",
+  "required": ["schemaVersion", "connectionId", "repository", "run", "agent", "summary", "proposals", "warnings"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "connectionId": { "type": "string", "format": "uuid" },
+    "repository": { "type": "object" },
+    "run": { "type": "object" },
+    "agent": { "type": "object" },
+    "summary": { "type": "string" },
+    "proposals": { "type": "array", "maxItems": 50 },
+    "warnings": { "type": "array", "maxItems": 50 },
+    "usage": { "type": "object" }
+  },
+  "additionalProperties": false
+}

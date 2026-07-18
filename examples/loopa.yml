@@ -1,0 +1,9 @@
+version: 1
+analysis:
+  tasks: [documentation, architecture, operations, release-notes]
+  include: ["**"]
+  exclude: ["**/generated/**", "**/vendor/**"]
+limits:
+  max-files: 250
+  max-read-bytes: 1048576
+  max-tool-calls: 20
