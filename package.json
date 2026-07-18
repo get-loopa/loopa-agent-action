@@ -22,7 +22,7 @@
     "@ai-sdk/fireworks": "^2.0.67",
     "@ai-sdk/google": "^3.0.80",
     "@ai-sdk/openai": "^3.0.68",
-    "@ai-sdk/openai-compatible": "^2.0.48",
+    "@ai-sdk/openai-compatible": "^3.0.12",
     "@openrouter/ai-sdk-provider": "^2.2.3",
     "ai": "^6.0.197",
     "fast-glob": "^3.3.3",
