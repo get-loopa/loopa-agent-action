@@ -1,4 +1,8 @@
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 type EventPayload = Record<string, unknown>;
 
@@ -24,13 +28,37 @@ export type GithubRunContext = {
   };
 };
 
+async function previousReleaseSha(headSha: string): Promise<string | undefined> {
+  if (!/^[a-fA-F0-9]{7,64}$/.test(headSha)) return undefined;
+  try {
+    const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
+    const { stdout: tagOutput } = await execFileAsync(
+      'git',
+      ['describe', '--tags', '--abbrev=0', `${headSha}^`],
+      { cwd: workspace, timeout: 30_000 },
+    );
+    const tag = tagOutput.trim();
+    if (!tag) return undefined;
+    const { stdout: shaOutput } = await execFileAsync(
+      'git',
+      ['rev-list', '-n', '1', tag],
+      { cwd: workspace, timeout: 30_000 },
+    );
+    const sha = shaOutput.trim();
+    return /^[a-fA-F0-9]{40,64}$/.test(sha) ? sha : undefined;
+  } catch {
+    // A repository's first release has no earlier tag and uses a single-commit analysis.
+    return undefined;
+  }
+}
+
 export async function githubRunContext(): Promise<GithubRunContext> {
   const eventPath = process.env.GITHUB_EVENT_PATH;
   const payload: EventPayload = eventPath
     ? (JSON.parse(await readFile(eventPath, 'utf8')) as EventPayload)
     : {};
   const event = process.env.GITHUB_EVENT_NAME ?? 'workflow_dispatch';
-  const baseSha =
+  let baseSha =
     nestedString(payload, ['pull_request', 'base', 'sha']) ??
     nestedString(payload, ['before']);
   const headSha =
@@ -38,6 +66,9 @@ export async function githubRunContext(): Promise<GithubRunContext> {
     nestedString(payload, ['after']) ??
     process.env.GITHUB_SHA ??
     '';
+  if (event === 'release' && !baseSha) {
+    baseSha = await previousReleaseSha(headSha);
+  }
   return {
     repository: {
       id: process.env.GITHUB_REPOSITORY_ID ?? '',
