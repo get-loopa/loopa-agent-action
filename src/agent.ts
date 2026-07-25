@@ -10,7 +10,9 @@ import {
 } from 'ai';
 import { z } from 'zod';
 import {
+  modelOutputSchema,
   modelReportSchema,
+  normalizeModelOutput,
   type ActionConfig,
   type ModelReport,
 } from './contracts.js';
@@ -85,13 +87,13 @@ export async function analyzeRepository(input: {
       }),
     },
     stopWhen: stepCountIs(input.config.limits['max-tool-calls']),
-    output: Output.object({ schema: modelReportSchema }),
+    output: Output.object({ schema: modelOutputSchema }),
     maxOutputTokens: 12_000,
     temperature: 0.1,
   });
   if (!result.output) throw new Error('The model returned no structured report');
   return {
-    report: modelReportSchema.parse(result.output),
+    report: modelReportSchema.parse(normalizeModelOutput(result.output)),
     usage: {
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,

@@ -66,6 +66,84 @@ export const modelReportSchema = z.object({
   warnings: z.array(z.string().max(2_000)).max(50).default([]),
 });
 
+const modelOutputEvidenceSchema = z.object({
+  path: z.string().min(1).max(500),
+  startLine: z.number().int().positive().nullable(),
+  endLine: z.number().int().positive().nullable(),
+  commitSha: z.string().max(64).nullable(),
+  description: z.string().min(1).max(1_000),
+});
+
+const modelOutputProposalSchema = z
+  .object({
+    proposalKey: z.string().min(1).max(160),
+    kind: proposalKindSchema,
+    title: z.string().min(1).max(240),
+    summary: z.string().min(1).max(4_000),
+    rationale: z.string().min(1).max(4_000),
+    draftMarkdown: z.string().max(200_000).nullable(),
+    targetHints: z.object({
+      titles: z.array(z.string().max(240)).max(20),
+      domains: z.array(z.string().max(160)).max(20),
+      paths: z.array(z.string().max(500)).max(50),
+    }),
+    evidence: z.array(modelOutputEvidenceSchema).min(1).max(100),
+    confidence: z.number().min(0).max(1),
+  })
+  .superRefine((proposal, ctx) => {
+    if (
+      ['new-document', 'adr', 'runbook', 'release-notes'].includes(
+        proposal.kind,
+      ) &&
+      !proposal.draftMarkdown?.trim()
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['draftMarkdown'],
+        message: 'A complete Markdown draft is required for this proposal kind.',
+      });
+    }
+  });
+
+/**
+ * Model providers with strict structured output require every object property
+ * to be listed as required. Nullable values represent unavailable evidence;
+ * normalizeModelOutput removes those nulls before constructing the wire report.
+ */
+export const modelOutputSchema = z.object({
+  summary: z.string().min(1).max(8_000),
+  proposals: z.array(modelOutputProposalSchema).max(50),
+  warnings: z.array(z.string().max(2_000)).max(50),
+});
+
+export function normalizeModelOutput(
+  output: z.infer<typeof modelOutputSchema>,
+): ModelReport {
+  return modelReportSchema.parse({
+    summary: output.summary,
+    warnings: output.warnings,
+    proposals: output.proposals.map((proposal) => ({
+      proposalKey: proposal.proposalKey,
+      kind: proposal.kind,
+      title: proposal.title,
+      summary: proposal.summary,
+      rationale: proposal.rationale,
+      ...(proposal.draftMarkdown === null
+        ? {}
+        : { draftMarkdown: proposal.draftMarkdown }),
+      targetHints: proposal.targetHints,
+      evidence: proposal.evidence.map((item) => ({
+        path: item.path,
+        ...(item.startLine === null ? {} : { startLine: item.startLine }),
+        ...(item.endLine === null ? {} : { endLine: item.endLine }),
+        ...(item.commitSha === null ? {} : { commitSha: item.commitSha }),
+        description: item.description,
+      })),
+      confidence: proposal.confidence,
+    })),
+  });
+}
+
 export const reportSchema = modelReportSchema.extend({
   schemaVersion: z.literal('1'),
   connectionId: z.string().uuid(),
