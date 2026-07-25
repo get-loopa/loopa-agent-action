@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   Output,
   generateText,
@@ -18,6 +19,18 @@ import { RepositoryReader } from './repository.js';
 
 export const PROMPT_VERSION = 'engineering-v1';
 
+export async function loadSystemPrompt(): Promise<string> {
+  const moduleRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+  );
+  const actionRoot = process.env.GITHUB_ACTION_PATH || moduleRoot;
+  return readFile(
+    path.join(actionRoot, 'prompts', `${PROMPT_VERSION}.md`),
+    'utf8',
+  );
+}
+
 export async function analyzeRepository(input: {
   model: LanguageModel;
   reader: RepositoryReader;
@@ -27,11 +40,7 @@ export async function analyzeRepository(input: {
   report: ModelReport;
   usage?: { inputTokens?: number; outputTokens?: number };
 }> {
-  const actionPath = process.env.GITHUB_ACTION_PATH ?? process.cwd();
-  const system = await readFile(
-    path.join(actionPath, 'prompts', `${PROMPT_VERSION}.md`),
-    'utf8',
-  );
+  const system = await loadSystemPrompt();
   const changeContext = await input.reader.diff(
     input.context.run.baseSha,
     input.context.run.headSha,
