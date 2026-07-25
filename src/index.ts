@@ -7,7 +7,7 @@ import { resolveModel } from './provider.js';
 import { RepositoryReader } from './repository.js';
 import { uploadReport } from './upload.js';
 
-const ACTION_VERSION = '1.0.2';
+const ACTION_VERSION = '1.0.3';
 
 async function run(): Promise<void> {
   const apiKey = core.getInput('llm-api-key', { required: true });
