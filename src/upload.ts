@@ -27,7 +27,7 @@ export async function uploadReport(
         headers: {
           authorization: `Bearer ${token}`,
           'content-type': 'application/json',
-          'user-agent': 'loopa-agent-action/1.0.4',
+          'user-agent': 'loopa-agent-action/1.0.5',
         },
         body: payload,
         signal: AbortSignal.timeout(30_000),
