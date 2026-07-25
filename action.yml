@@ -33,7 +33,7 @@ inputs:
   loopa-api-url:
     description: Advanced Loopa API base URL override.
     required: false
-    default: https://api.getloopa.com
+    default: https://api.getloopa.co
 outputs:
   report-id:
     description: Identifier assigned by Loopa to the accepted report.
