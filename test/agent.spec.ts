@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { loadSystemPrompt } from '../src/agent.js';
+import { createToolBudget, loadSystemPrompt } from '../src/agent.js';
 
 const originalActionPath = process.env.GITHUB_ACTION_PATH;
 
@@ -17,6 +17,19 @@ describe('system prompt discovery', () => {
 
     await expect(loadSystemPrompt()).resolves.toContain(
       "You are Loopa's repository analysis agent.",
+    );
+  });
+});
+
+describe('repository tool budget', () => {
+  it('allows the configured number of calls and rejects any additional call', async () => {
+    const budget = createToolBudget(2);
+
+    await expect(budget.run(() => 'first')).resolves.toBe('first');
+    await expect(budget.run(() => 'second')).resolves.toBe('second');
+    expect(budget.exhausted()).toBe(true);
+    await expect(budget.run(() => 'third')).rejects.toThrow(
+      'Repository tool-call limit reached (2)',
     );
   });
 });

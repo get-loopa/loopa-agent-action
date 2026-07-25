@@ -21,6 +21,22 @@ import { RepositoryReader } from './repository.js';
 
 export const PROMPT_VERSION = 'engineering-v1';
 
+export function createToolBudget(limit: number) {
+  let used = 0;
+  return {
+    exhausted: () => used >= limit,
+    run: async <Result>(
+      operation: () => Result | Promise<Result>,
+    ): Promise<Result> => {
+      if (used >= limit) {
+        throw new Error(`Repository tool-call limit reached (${limit})`);
+      }
+      used += 1;
+      return operation();
+    },
+  };
+}
+
 export async function loadSystemPrompt(): Promise<string> {
   const moduleRoot = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -43,6 +59,9 @@ export async function analyzeRepository(input: {
   usage?: { inputTokens?: number; outputTokens?: number };
 }> {
   const system = await loadSystemPrompt();
+  const toolBudget = createToolBudget(
+    input.config.limits['max-tool-calls'],
+  );
   const changeContext = await input.reader.diff(
     input.context.run.baseSha,
     input.context.run.headSha,
@@ -63,7 +82,8 @@ export async function analyzeRepository(input: {
       list_files: tool({
         description: 'List readable repository files using a glob.',
         inputSchema: z.object({ pattern: z.string().max(300).default('**') }),
-        execute: ({ pattern }) => input.reader.listFiles(pattern),
+        execute: ({ pattern }) =>
+          toolBudget.run(() => input.reader.listFiles(pattern)),
       }),
       read_file: tool({
         description: 'Read a bounded range from a repository text file.',
@@ -73,23 +93,29 @@ export async function analyzeRepository(input: {
           endLine: z.number().int().positive().optional(),
         }),
         execute: ({ path: file, startLine, endLine }) =>
-          input.reader.readText(file, startLine, endLine),
+          toolBudget.run(() =>
+            input.reader.readText(file, startLine, endLine),
+          ),
       }),
       search_text: tool({
         description: 'Search readable repository files for literal text.',
         inputSchema: z.object({ query: z.string().min(1).max(200) }),
-        execute: ({ query }) => input.reader.searchText(query),
+        execute: ({ query }) =>
+          toolBudget.run(() => input.reader.searchText(query)),
       }),
       read_change_context: tool({
         description: 'Read the bounded Git change context for this event.',
         inputSchema: z.object({}),
-        execute: () => changeContext,
+        execute: () => toolBudget.run(() => changeContext),
       }),
     },
-    stopWhen: stepCountIs(input.config.limits['max-tool-calls']),
+    prepareStep: () =>
+      toolBudget.exhausted()
+        ? { activeTools: [], toolChoice: 'none' as const }
+        : {},
+    stopWhen: stepCountIs(input.config.limits['max-tool-calls'] + 1),
     output: Output.object({ schema: modelOutputSchema }),
     maxOutputTokens: 12_000,
-    temperature: 0.1,
   });
   if (!result.output) throw new Error('The model returned no structured report');
   return {
