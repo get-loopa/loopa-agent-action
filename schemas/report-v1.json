@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://getloopa.com/schemas/github-action-report-v1.json",
+  "$id": "https://getloopa.co/schemas/github-action-report-v1.json",
   "title": "Loopa GitHub Action report v1",
   "type": "object",
   "required": ["schemaVersion", "connectionId", "repository", "run", "agent", "summary", "proposals", "warnings"],

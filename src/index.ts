@@ -7,7 +7,7 @@ import { resolveModel } from './provider.js';
 import { RepositoryReader } from './repository.js';
 import { uploadReport } from './upload.js';
 
-const ACTION_VERSION = '1.0.1';
+const ACTION_VERSION = '1.0.2';
 
 async function run(): Promise<void> {
   const apiKey = core.getInput('llm-api-key', { required: true });
@@ -51,7 +51,7 @@ async function run(): Promise<void> {
     usage: analyzed.usage,
   });
   const delivered = await uploadReport(
-    core.getInput('loopa-api-url') || 'https://api.getloopa.com',
+    core.getInput('loopa-api-url') || 'https://api.getloopa.co',
     report,
   );
   core.setOutput('report-id', delivered.reportId);

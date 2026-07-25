@@ -66,7 +66,7 @@ export function resolveModel(input: ProviderInput): {
         apiKey: input.apiKey,
         compatibility: 'strict',
         appName: 'Loopa GitHub Action',
-        appUrl: 'https://getloopa.com',
+        appUrl: 'https://getloopa.co',
       }).chat(modelId),
     };
   }

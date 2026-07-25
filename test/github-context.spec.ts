@@ -25,7 +25,7 @@ describe('githubRunContext', () => {
     roots.push(root);
     git(root, 'init');
     git(root, 'config', 'user.name', 'Loopa Test');
-    git(root, 'config', 'user.email', 'test@getloopa.com');
+    git(root, 'config', 'user.email', 'test@getloopa.co');
     await writeFile(path.join(root, 'README.md'), 'first\n');
     git(root, 'add', 'README.md');
     git(root, 'commit', '-m', 'first release');
