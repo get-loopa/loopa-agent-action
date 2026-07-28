@@ -165,6 +165,7 @@ export const reportSchema = modelReportSchema.extend({
     model: z.string().min(1).max(300),
     actionVersion: z.string().min(1).max(100),
     promptVersion: z.string().min(1).max(100),
+    policyVersion: z.string().min(1).max(100).optional(),
   }),
   usage: z
     .object({
@@ -220,3 +221,22 @@ export const actionConfigSchema = z.object({
 });
 
 export type ActionConfig = z.infer<typeof actionConfigSchema>;
+
+export const analysisPolicySchema = z.object({
+  version: z.literal('1'),
+  policyVersion: z.string().min(1).max(100),
+  tasks: z
+    .array(
+      z.enum([
+        'documentation',
+        'architecture',
+        'operations',
+        'release-notes',
+      ]),
+    )
+    .min(1)
+    .max(4),
+  additionalInstructions: z.string().max(8_000).nullable(),
+});
+
+export type AnalysisPolicy = z.infer<typeof analysisPolicySchema>;

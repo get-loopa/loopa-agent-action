@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import {
   actionConfigSchema,
+  analysisPolicySchema,
   modelOutputSchema,
   modelProposalSchema,
   normalizeModelOutput,
@@ -30,6 +31,26 @@ describe('contracts', () => {
     expect(parsed.limits['max-files']).toBe(250);
     expect(parsed.limits['max-read-bytes']).toBe(1024 * 1024);
     expect(parsed.limits['max-tool-calls']).toBe(20);
+  });
+
+  it('accepts bounded dynamic guidance and rejects oversized guidance', () => {
+    expect(
+      analysisPolicySchema.parse({
+        version: '1',
+        policyVersion: 'customer-policy-v7',
+        tasks: ['architecture', 'operations'],
+        additionalInstructions: 'Focus on rollback and customer impact.',
+      }),
+    ).toMatchObject({ tasks: ['architecture', 'operations'] });
+
+    expect(() =>
+      analysisPolicySchema.parse({
+        version: '1',
+        policyVersion: 'oversized',
+        tasks: ['documentation'],
+        additionalInstructions: 'x'.repeat(8_001),
+      }),
+    ).toThrow();
   });
 
   it('requires Markdown for new documents', () => {
