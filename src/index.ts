@@ -8,7 +8,7 @@ import { fetchAnalysisPolicy } from './policy.js';
 import { RepositoryReader } from './repository.js';
 import { uploadReport } from './upload.js';
 
-const ACTION_VERSION = '1.1.0';
+const ACTION_VERSION = '1.2.0';
 
 async function run(): Promise<void> {
   const apiKey = core.getInput('llm-api-key', { required: true });

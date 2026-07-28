@@ -24,7 +24,7 @@ export async function fetchAnalysisPolicy(input: {
       headers: {
         authorization: `Bearer ${token}`,
         'content-type': 'application/json',
-        'user-agent': 'loopa-agent-action/1.1.0',
+        'user-agent': 'loopa-agent-action/1.2.0',
       },
       body: JSON.stringify({
         connectionId: input.connectionId,

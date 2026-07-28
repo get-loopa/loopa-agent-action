@@ -7,6 +7,7 @@ export const providerSchema = z.enum([
   'azure-openai',
   'openrouter',
   'fireworks',
+  'opencode-go',
   'openai-compatible',
 ]);
 
