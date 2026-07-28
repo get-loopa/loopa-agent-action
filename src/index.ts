@@ -4,10 +4,11 @@ import { loadConfig } from './config.js';
 import { reportSchema } from './contracts.js';
 import { githubRunContext } from './github-context.js';
 import { resolveModel } from './provider.js';
+import { fetchAnalysisPolicy } from './policy.js';
 import { RepositoryReader } from './repository.js';
 import { uploadReport } from './upload.js';
 
-const ACTION_VERSION = '1.0.5';
+const ACTION_VERSION = '1.1.0';
 
 async function run(): Promise<void> {
   const apiKey = core.getInput('llm-api-key', { required: true });
@@ -22,6 +23,14 @@ async function run(): Promise<void> {
     core.getInput('config-path') || '.github/loopa.yml',
   );
   const context = await githubRunContext();
+  const loopaApiUrl =
+    core.getInput('loopa-api-url') || 'https://api.getloopa.co';
+  const policyResult = await fetchAnalysisPolicy({
+    apiBase: loopaApiUrl,
+    connectionId,
+    context,
+  });
+  if (policyResult.warning) core.warning(policyResult.warning);
   const resolved = resolveModel({
     provider: providerInput,
     model: modelId,
@@ -36,6 +45,7 @@ async function run(): Promise<void> {
     reader,
     config,
     context,
+    policy: policyResult.policy,
   });
   const report = reportSchema.parse({
     schemaVersion: '1',
@@ -46,12 +56,19 @@ async function run(): Promise<void> {
       model: modelId,
       actionVersion: ACTION_VERSION,
       promptVersion: PROMPT_VERSION,
+      ...(policyResult.policy
+        ? { policyVersion: policyResult.policy.policyVersion }
+        : {}),
     },
     ...analyzed.report,
+    warnings: [
+      ...(policyResult.warning ? [policyResult.warning] : []),
+      ...analyzed.report.warnings,
+    ].slice(0, 50),
     usage: analyzed.usage,
   });
   const delivered = await uploadReport(
-    core.getInput('loopa-api-url') || 'https://api.getloopa.co',
+    loopaApiUrl,
     report,
   );
   core.setOutput('report-id', delivered.reportId);

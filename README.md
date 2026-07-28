@@ -12,6 +12,11 @@ OpenAI, Anthropic, Google, Azure OpenAI, OpenRouter, Fireworks, and OpenAI-compa
 
 - GitHub OIDC authenticates report delivery; no Loopa API key is stored in GitHub.
 - The model receives only bounded list, read, search, and diff tools.
+- Client-specific analysis guidance is fetched from Loopa with GitHub OIDC. It
+  cannot override the bundled security prompt, tools, repository read limits, or
+  output schema.
+- Policy retrieval falls back to the checked-in `.github/loopa.yml` tasks when
+  Loopa is unavailable or returns an invalid policy.
 - Mandatory credential, binary, dependency, and generated-file exclusions cannot be disabled.
 - Reports contain generated proposals and evidence references, not repository source blobs.
 - The Action does not receive existing Loopa documents.
