@@ -6,7 +6,14 @@ The recommended installation path is the generated setup download in **Loopa →
 
 ## Supported providers
 
-OpenAI, Anthropic, Google, Azure OpenAI, OpenRouter, Fireworks, and OpenAI-compatible APIs.
+OpenAI, Anthropic, Google, Azure OpenAI, OpenRouter, Fireworks, OpenCode Go, and OpenAI-compatible APIs.
+
+OpenCode Go uses the official `https://opencode.ai/zen/go/v1` endpoint. Set
+`provider: opencode-go`, use one of the supported raw model IDs, and provide the
+organization's OpenCode Go key through a GitHub Actions secret such as
+`OPENCODE_GO_API_KEY`. Loopa never receives that secret. The Action selects the
+documented OpenAI-compatible or Anthropic-compatible wire format for the model;
+both formats remain reported as the `opencode-go` provider.
 
 ## Security model
 

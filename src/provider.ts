@@ -20,6 +20,46 @@ export type ProviderInput = {
   azureApiVersion?: string;
 };
 
+export const OPENCODE_GO_BASE_URL = 'https://opencode.ai/zen/go/v1';
+
+export const OPENCODE_GO_MODEL_TRANSPORTS = {
+  'grok-4.5': 'openai-compatible',
+  'glm-5.2': 'openai-compatible',
+  'glm-5.1': 'openai-compatible',
+  'kimi-k3': 'openai-compatible',
+  'kimi-k2.7-code': 'openai-compatible',
+  'kimi-k2.6': 'openai-compatible',
+  'deepseek-v4-pro': 'openai-compatible',
+  'deepseek-v4-flash': 'openai-compatible',
+  'mimo-v2.5': 'openai-compatible',
+  'mimo-v2.5-pro': 'openai-compatible',
+  hy3: 'openai-compatible',
+  'minimax-m3': 'anthropic-compatible',
+  'minimax-m2.7': 'anthropic-compatible',
+  'minimax-m2.5': 'anthropic-compatible',
+  'qwen3.7-max': 'anthropic-compatible',
+  'qwen3.7-plus': 'anthropic-compatible',
+  'qwen3.6-plus': 'anthropic-compatible',
+} as const satisfies Record<
+  string,
+  'openai-compatible' | 'anthropic-compatible'
+>;
+
+export type OpenCodeGoModelId = keyof typeof OPENCODE_GO_MODEL_TRANSPORTS;
+
+export function openCodeGoTransport(
+  modelId: string,
+): (typeof OPENCODE_GO_MODEL_TRANSPORTS)[OpenCodeGoModelId] {
+  const transport =
+    OPENCODE_GO_MODEL_TRANSPORTS[modelId as OpenCodeGoModelId];
+  if (!transport) {
+    throw new Error(
+      `Unsupported OpenCode Go model "${modelId}". Regenerate the Loopa workflow after selecting an available model.`,
+    );
+  }
+  return transport;
+}
+
 export function resolveModel(input: ProviderInput): {
   provider: ProviderName;
   model: LanguageModel;
@@ -75,6 +115,25 @@ export function resolveModel(input: ProviderInput): {
       provider,
       model: createFireworks({ apiKey: input.apiKey })(modelId),
     };
+  }
+  if (provider === 'opencode-go') {
+    const transport = openCodeGoTransport(modelId);
+    if (transport === 'anthropic-compatible') {
+      return {
+        provider,
+        model: createAnthropic({
+          apiKey: input.apiKey,
+          baseURL: OPENCODE_GO_BASE_URL,
+        })(modelId),
+      };
+    }
+    const openCodeGo = createOpenAICompatible({
+      name: 'opencode-go',
+      apiKey: input.apiKey,
+      baseURL: OPENCODE_GO_BASE_URL,
+      supportsStructuredOutputs: true,
+    });
+    return { provider, model: openCodeGo(modelId) };
   }
   if (!input.baseUrl) {
     throw new Error('base-url is required for openai-compatible');
