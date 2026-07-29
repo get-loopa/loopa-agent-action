@@ -1,39 +1,38 @@
-# Loopa Agent Action
+# Loopa Workspace Analysis
 
-Analyze repository changes with the organization's AI settings in Loopa and send a structured, reviewable report. Repository tools run inside GitHub Actions, while provider credentials remain encrypted in Loopa and are never sent to the runner.
+Loopa analyzes a frozen workspace of 1–50 GitHub repositories from an
+administrator-created SaaS run. The customer coordinator contains only a
+required `request_id` input and a call to this reusable workflow at an immutable
+commit.
 
-The recommended installation path is the generated setup download in **Loopa → Admin → Integrations → GitHub**. It creates a workflow pinned to an immutable release SHA and a `.github/loopa.yml` analysis configuration.
+The reusable workflow is independent from deployment workflows and runs on
+standard GitHub-hosted runners:
 
-## Provider routing
+- `prepare` verifies GitHub OIDC and emits the frozen source matrix.
+- `extract` runs with `max-parallel: 2`, creates one source-scoped reader App
+  token per checkout, applies the centralized readable-path policy, calls the
+  customer’s LLM provider directly, and emits a signed capsule of at most
+  64 KiB.
+- `synthesize` requires every signed capsule, reduces deterministic batches of
+  at most 512 KiB sequentially, performs a final synthesis capped at 1 MiB, and
+  returns structured question answers, proposals, exact repository identities,
+  evidence, warnings, and aggregate usage.
 
-New setups do not configure a provider, model, or LLM secret in GitHub. The
-Action authenticates with GitHub OIDC, receives a short-lived run-scoped Loopa
-token, and sends bounded model requests through Loopa. Each new run uses the
-organization's current structured-output model; a provider change needs no
-workflow update.
+Prompts, questions, policies, model selection, provider options, and credential
+version are frozen by Loopa before dispatch. A healthy customer-managed provider
+credential is decrypted only after OIDC verification, masked immediately, and
+kept only in Action process memory. Loopa-managed credentials are never sent to
+GitHub. The backend exposes no inference gateway.
 
-Legacy workflows that already pass `provider`, `model`, and `llm-api-key`
-continue to call OpenAI, Anthropic, Google, Azure OpenAI, OpenRouter, Fireworks,
-OpenCode Go, or an OpenAI-compatible API directly. Regenerate those workflows
-from Loopa to move them to credentialless routing.
+The customer-owned reader GitHub App has `Contents: read` and is installed only
+on selected repositories. Its client ID and private key remain in the
+coordinator’s GitHub variable and secret.
 
-## Security model
+Public repositories use standard GitHub-hosted runners without minute charges.
+Private repositories consume the owner’s GitHub Actions minutes and artifact
+storage. GitHub Free currently includes 2,000 private-repository minutes per
+month.
 
-- GitHub OIDC authenticates bootstrap and report delivery; no Loopa or provider
-  API key is stored in GitHub.
-- Loopa issues an opaque token scoped to one connection, repository, workflow,
-  run, and attempt. The token is short-lived, hashed at rest, usage-limited, and
-  masked in runner logs.
-- Provider credentials are decrypted only in backend memory for the selected
-  organization and are never returned by an Action endpoint.
-- The model receives only bounded list, read, search, and diff tools.
-- Client-specific analysis guidance is fetched from Loopa with GitHub OIDC. It
-  cannot override the bundled security prompt, tools, repository read limits, or
-  output schema.
-- Credentialless runs fail visibly when Loopa or the selected provider is
-  unavailable; they never fall back to another credential or provider.
-- Mandatory credential, binary, dependency, and generated-file exclusions cannot be disabled.
-- Reports contain generated proposals and evidence references, not repository source blobs.
-- The Action does not receive existing Loopa documents.
-
-See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+Use **Loopa → Admin → Integrations → GitHub** to download the caller workflow,
+manifest, and installation guide. See [SECURITY.md](SECURITY.md) to report
+security issues.

@@ -1,0 +1,164 @@
+name: Loopa reusable workspace analysis
+
+on:
+  workflow_call:
+    inputs:
+      workspace-id:
+        required: true
+        type: string
+      request-id:
+        required: true
+        type: string
+      loopa-api-url:
+        required: true
+        type: string
+      reader-app-client-id:
+        required: true
+        type: string
+    secrets:
+      reader-app-private-key:
+        required: true
+
+permissions:
+  actions: write
+  contents: read
+  id-token: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.prepare.outputs.source-matrix }}
+    steps:
+      - name: Resolve immutable reusable-workflow SHA
+        id: identity
+        shell: bash
+        run: |
+          token="$(curl --fail --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=loopa-action-bootstrap" | jq -r .value)"
+          echo "::add-mask::${token}"
+          sha="$(node -e 'const p=process.argv[1].split(".")[1]; process.stdout.write(JSON.parse(Buffer.from(p, "base64url")).job_workflow_sha)' "${token}")"
+          test "${#sha}" -eq 40
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+      - name: Check out immutable Loopa runtime
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: get-loopa/loopa-agent-action
+          ref: ${{ steps.identity.outputs.sha }}
+          path: .loopa-action
+          persist-credentials: false
+      - name: Authorize frozen workspace run
+        id: prepare
+        uses: ./.loopa-action
+        with:
+          mode: prepare
+          workspace-id: ${{ inputs.workspace-id }}
+          request-id: ${{ inputs.request-id }}
+          loopa-api-url: ${{ inputs.loopa-api-url }}
+
+  extract:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: true
+      max-parallel: 2
+      matrix:
+        source: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Resolve immutable reusable-workflow SHA
+        id: identity
+        shell: bash
+        run: |
+          token="$(curl --fail --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=loopa-action-bootstrap" | jq -r .value)"
+          echo "::add-mask::${token}"
+          sha="$(node -e 'const p=process.argv[1].split(".")[1]; process.stdout.write(JSON.parse(Buffer.from(p, "base64url")).job_workflow_sha)' "${token}")"
+          test "${#sha}" -eq 40
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+      - name: Check out immutable Loopa runtime
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: get-loopa/loopa-agent-action
+          ref: ${{ steps.identity.outputs.sha }}
+          path: .loopa-action
+          persist-credentials: false
+      - name: Create source-scoped reader token
+        id: reader
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ inputs.reader-app-client-id }}
+          private-key: ${{ secrets.reader-app-private-key }}
+          owner: ${{ matrix.source.owner }}
+          repositories: ${{ matrix.source.name }}
+          permission-contents: read
+      - name: Check out exact source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: ${{ matrix.source.repository }}
+          ref: ${{ matrix.source.ref }}
+          token: ${{ steps.reader.outputs.token }}
+          path: source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Extract signed repository capsule
+        id: extract
+        uses: ./.loopa-action
+        with:
+          mode: extract
+          workspace-id: ${{ inputs.workspace-id }}
+          request-id: ${{ inputs.request-id }}
+          connection-id: ${{ matrix.source.connectionId }}
+          source-root: source
+          source-repository: ${{ matrix.source.repository }}
+          loopa-api-url: ${{ inputs.loopa-api-url }}
+      - name: Retain signed capsule for one day
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: loopa-capsule-${{ matrix.source.connectionId }}
+          path: ${{ steps.extract.outputs.capsule-path }}
+          if-no-files-found: error
+          retention-days: 1
+
+  synthesize:
+    needs: [prepare, extract]
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Resolve immutable reusable-workflow SHA
+        id: identity
+        shell: bash
+        run: |
+          token="$(curl --fail --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=loopa-action-bootstrap" | jq -r .value)"
+          echo "::add-mask::${token}"
+          sha="$(node -e 'const p=process.argv[1].split(".")[1]; process.stdout.write(JSON.parse(Buffer.from(p, "base64url")).job_workflow_sha)' "${token}")"
+          test "${#sha}" -eq 40
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+      - name: Check out immutable Loopa runtime
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: get-loopa/loopa-agent-action
+          ref: ${{ steps.identity.outputs.sha }}
+          path: .loopa-action
+          persist-credentials: false
+      - name: Download all required repository capsules
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          pattern: loopa-capsule-*
+          path: capsules
+          merge-multiple: true
+      - name: Synthesize workspace report
+        id: synthesize
+        uses: ./.loopa-action
+        with:
+          mode: synthesize
+          workspace-id: ${{ inputs.workspace-id }}
+          request-id: ${{ inputs.request-id }}
+          capsules-path: capsules
+          loopa-api-url: ${{ inputs.loopa-api-url }}
