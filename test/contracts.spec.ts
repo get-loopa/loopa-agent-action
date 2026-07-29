@@ -32,6 +32,7 @@ describe("v3 contracts", () => {
       prepareRuntimeSchema.parse({
         version: "3",
         workspaceId,
+        callerConnectionId: connectionId,
         requestId,
         phase: "prepare",
         sources,
@@ -43,6 +44,7 @@ describe("v3 contracts", () => {
     const parsed = extractRuntimeSchema.parse({
       version: "3",
       workspaceId,
+      callerConnectionId: connectionId,
       requestId,
       phase: "extract",
       source,

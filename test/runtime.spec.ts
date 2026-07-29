@@ -26,6 +26,7 @@ describe("credential runtime lease", () => {
         JSON.stringify({
           version: "3",
           workspaceId,
+          callerConnectionId: connectionId,
           requestId,
           phase: "extract",
           source: {
@@ -71,6 +72,7 @@ describe("credential runtime lease", () => {
       workspaceId,
       requestId,
       sourceConnectionId: connectionId,
+      sourceRepositoryId: "123",
       context: {
         repository: { id: "123", fullName: "acme/api" },
         run: {

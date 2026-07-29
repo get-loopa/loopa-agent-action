@@ -34,29 +34,31 @@ async function runPrepare(): Promise<void> {
   assertRun(context.run.attempt, context.run.event);
   const runtime = await prepareRuntime({
     apiBase: loopaApiBase(),
-    workspaceId: requiredInput("workspace-id"),
+    workspaceId: optionalInput("workspace-id"),
     requestId: requiredInput("request-id"),
     context,
   });
   core.setOutput("source-matrix", JSON.stringify(runtime.sources));
   core.setOutput("request-id", runtime.requestId);
   core.setOutput("status", "prepared");
-  core.info(`Authorized ${runtime.sources.length} workspace source(s).`);
+  core.info(`Authorized ${runtime.sources.length} repository source(s).`);
 }
 
 async function runExtract(): Promise<void> {
   const workspace = requiredWorkspace();
   const context = await githubRunContext();
   assertRun(context.run.attempt, context.run.event);
-  const workspaceId = requiredInput("workspace-id");
+  const workspaceId = optionalInput("workspace-id");
   const requestId = requiredInput("request-id");
   const connectionId = requiredInput("connection-id");
   const repository = requiredInput("source-repository").toLowerCase();
+  const repositoryId = requiredInput("source-repository-id");
   const runtime = await extractRuntime({
     apiBase: loopaApiBase(),
     workspaceId,
     requestId,
     sourceConnectionId: connectionId,
+    sourceRepositoryId: repositoryId,
     context,
   });
   if (
@@ -74,7 +76,9 @@ async function runExtract(): Promise<void> {
     throw new Error("source-root must resolve inside GITHUB_WORKSPACE");
   }
   const headSha = await sourceHeadSha(sourceRoot);
-  const repositoryId = runtime.source.repositoryId;
+  if (runtime.source.repositoryId !== repositoryId) {
+    throw new Error("Source repository ID does not match the frozen run");
+  }
   const model = resolveModel(runtime.provider);
   const reader = new RepositoryReader(sourceRoot, runtime.policy);
   const analyzed = await analyzeRepository({
@@ -119,7 +123,7 @@ async function runSynthesize(): Promise<void> {
   const workspace = requiredWorkspace();
   const context = await githubRunContext();
   assertRun(context.run.attempt, context.run.event);
-  const workspaceId = requiredInput("workspace-id");
+  const workspaceId = optionalInput("workspace-id");
   const requestId = requiredInput("request-id");
   const runtime = await synthesizeRuntime({
     apiBase: loopaApiBase(),
@@ -153,19 +157,11 @@ async function runSynthesize(): Promise<void> {
     questions: runtime.questions,
     capsules,
   });
-  const coordinator = runtime.sources.find(
-    (source) =>
-      source.repository.toLowerCase() ===
-      context.repository.fullName.toLowerCase(),
-  );
-  if (!coordinator) {
-    throw new Error("Coordinator repository is not in the frozen source set");
-  }
   const report = reportSchema.parse({
     schemaVersion: "3",
-    workspaceId,
+    workspaceId: runtime.workspaceId,
     requestId,
-    coordinatorConnectionId: coordinator.connectionId,
+    coordinatorConnectionId: runtime.callerConnectionId,
     run: {
       id: context.run.id,
       attempt: 1,
@@ -212,6 +208,10 @@ function requiredInput(name: string): string {
   const value = core.getInput(name);
   if (!value) throw new Error(`${name} is required`);
   return value;
+}
+
+function optionalInput(name: string): string | undefined {
+  return core.getInput(name) || undefined;
 }
 
 function requiredWorkspace(): string {
