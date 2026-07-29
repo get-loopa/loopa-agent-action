@@ -7,6 +7,8 @@ export const providerSchema = z.enum([
   'azure-openai',
   'openrouter',
   'fireworks',
+  'huggingface',
+  'ollama',
   'opencode-go',
   'openai-compatible',
 ]);
@@ -164,6 +166,7 @@ export const reportSchema = modelReportSchema.extend({
   agent: z.object({
     provider: providerSchema,
     model: z.string().min(1).max(300),
+    inferenceSessionId: z.string().uuid().optional(),
     actionVersion: z.string().min(1).max(100),
     promptVersion: z.string().min(1).max(100),
     policyVersion: z.string().min(1).max(100).optional(),
