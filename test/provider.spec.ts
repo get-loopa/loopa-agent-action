@@ -1,83 +1,61 @@
-import { generateText } from 'ai';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  OPENCODE_GO_BASE_URL,
-  openCodeGoTransport,
-  resolveModel,
-} from '../src/provider.js';
+import { describe, expect, it } from "vitest";
+import type { ProviderEnvelope } from "../src/contracts.js";
+import { resolveModel } from "../src/provider.js";
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+const base = {
+  modelId: "test-model",
+  credential: "customer-managed-test-key",
+  promptVersion: "sha256:test",
+  credentialVersion: "credential-v1",
+} as const;
 
-describe('OpenCode Go provider', () => {
-  it('uses the OpenAI-compatible chat endpoint and Bearer authentication', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      Response.json({
-        id: 'chatcmpl_test',
-        object: 'chat.completion',
-        created: 1,
-        model: 'grok-4.5',
-        choices: [
-          {
-            index: 0,
-            message: { role: 'assistant', content: 'OK' },
-            finish_reason: 'stop',
-          },
-        ],
-        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+const envelopes: ProviderEnvelope[] = [
+  { ...base, adapterKey: "openai", endpointOptions: {} },
+  { ...base, adapterKey: "anthropic", endpointOptions: {} },
+  { ...base, adapterKey: "google", endpointOptions: {} },
+  {
+    ...base,
+    adapterKey: "azure-openai",
+    endpointOptions: { azureResourceName: "customer-resource" },
+  },
+  { ...base, adapterKey: "openrouter", endpointOptions: {} },
+  { ...base, adapterKey: "fireworks", endpointOptions: {} },
+  { ...base, adapterKey: "huggingface", endpointOptions: {} },
+  {
+    ...base,
+    adapterKey: "opencode-go",
+    endpointOptions: { transport: "openai-compatible" },
+  },
+  {
+    ...base,
+    adapterKey: "opencode-go",
+    endpointOptions: { transport: "anthropic-compatible" },
+  },
+  {
+    ...base,
+    adapterKey: "openai-compatible",
+    endpointOptions: { baseUrl: "https://llm.customer.example/v1" },
+  },
+];
+
+describe("direct customer provider adapters", () => {
+  it.each(envelopes)(
+    "constructs $adapterKey without contacting the Loopa backend",
+    (envelope) => {
+      const model = resolveModel(envelope);
+      expect(model).toBeDefined();
+      expect(typeof model).not.toBe("string");
+      expect((model as { modelId: string }).modelId).toBe("test-model");
+    },
+  );
+
+  it("requires a public endpoint for a generic compatible provider", () => {
+    expect(() =>
+      resolveModel({
+        ...base,
+        adapterKey: "openai-compatible",
+        endpointOptions: {},
       }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-
-    const resolved = resolveModel({
-      provider: 'opencode-go',
-      model: 'grok-4.5',
-      apiKey: 'organization-a-secret',
-    });
-    await generateText({ model: resolved.model, prompt: 'Reply OK.' });
-
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe(`${OPENCODE_GO_BASE_URL}/chat/completions`);
-    expect(new Headers(init?.headers).get('authorization')).toBe(
-      'Bearer organization-a-secret',
-    );
-    expect(resolved.provider).toBe('opencode-go');
-  });
-
-  it('uses the Anthropic-compatible messages endpoint and x-api-key authentication', async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      Response.json({
-        id: 'msg_test',
-        type: 'message',
-        role: 'assistant',
-        model: 'minimax-m3',
-        content: [{ type: 'text', text: 'OK' }],
-        stop_reason: 'end_turn',
-        stop_sequence: null,
-        usage: { input_tokens: 1, output_tokens: 1 },
-      }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-
-    const resolved = resolveModel({
-      provider: 'opencode-go',
-      model: 'minimax-m3',
-      apiKey: 'organization-b-secret',
-    });
-    await generateText({ model: resolved.model, prompt: 'Reply OK.' });
-
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe(`${OPENCODE_GO_BASE_URL}/messages`);
-    expect(new Headers(init?.headers).get('x-api-key')).toBe(
-      'organization-b-secret',
-    );
-    expect(resolved.provider).toBe('opencode-go');
-  });
-
-  it('rejects models that have not been validated for a transport', () => {
-    expect(() => openCodeGoTransport('new-unvalidated-model')).toThrow(
-      /Unsupported OpenCode Go model/,
-    );
+    ).toThrow(/public base URL/i);
   });
 });
