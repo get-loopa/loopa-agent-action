@@ -24,7 +24,7 @@
     "@ai-sdk/huggingface": "^1.0.64",
     "@ai-sdk/openai": "^3.0.89",
     "@ai-sdk/openai-compatible": "^2.0.62",
-    "@openrouter/ai-sdk-provider": "^2.10.0",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "ai": "^6.0.197",
     "fast-glob": "^3.3.3",
     "picomatch": "^4.0.5",
