@@ -16,7 +16,10 @@ export async function prepareRuntime(input: RuntimeInput) {
 }
 
 export async function extractRuntime(
-  input: RuntimeInput & { sourceConnectionId: string },
+  input: RuntimeInput & {
+    sourceConnectionId: string;
+    sourceRepositoryId: string;
+  },
 ) {
   const response = extractRuntimeSchema.parse(
     await requestRuntime({ ...input, phase: "extract" }),
@@ -37,7 +40,7 @@ export async function synthesizeRuntime(input: RuntimeInput) {
 
 type RuntimeInput = {
   apiBase: string;
-  workspaceId: string;
+  workspaceId?: string;
   requestId: string;
   context: GithubRunContext;
 };
@@ -46,6 +49,7 @@ async function requestRuntime(
   input: RuntimeInput & {
     phase: "prepare" | "extract" | "synthesize";
     sourceConnectionId?: string;
+    sourceRepositoryId?: string;
   },
 ): Promise<unknown> {
   const base = validatedBase(input.apiBase);
@@ -54,11 +58,14 @@ async function requestRuntime(
     .replace(/\/$/, "");
   const body = JSON.stringify({
     version: "3",
-    workspaceId: input.workspaceId,
+    ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
     requestId: input.requestId,
     phase: input.phase,
     ...(input.sourceConnectionId
       ? { sourceConnectionId: input.sourceConnectionId }
+      : {}),
+    ...(input.sourceRepositoryId
+      ? { sourceRepositoryId: input.sourceRepositoryId }
       : {}),
     run: {
       id: input.context.run.id,

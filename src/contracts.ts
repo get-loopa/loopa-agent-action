@@ -83,6 +83,7 @@ export const providerEnvelopeSchema = z
 const runtimeBase = z.object({
   version: z.literal(CONTRACT_VERSION),
   workspaceId: z.string().uuid(),
+  callerConnectionId: z.string().uuid(),
   requestId: z.string().uuid(),
 });
 

@@ -1,5 +1,5 @@
-name: Loopa workspace analysis runtime
-description: Executes one phase of a frozen administrator-created Loopa workspace run.
+name: Loopa repository analysis runtime
+description: Executes one phase of a frozen administrator-created Loopa analysis run.
 author: Loopa
 branding:
   icon: book-open
@@ -9,8 +9,8 @@ inputs:
     description: prepare, extract, or synthesize.
     required: true
   workspace-id:
-    description: Frozen Loopa workspace identifier.
-    required: true
+    description: Legacy Loopa workspace identifier. New callers use request-id only.
+    required: false
   request-id:
     description: Required administrator-created Loopa run request.
     required: true
@@ -23,6 +23,9 @@ inputs:
     default: source
   source-repository:
     description: Expected owner/name for extract mode.
+    required: false
+  source-repository-id:
+    description: Exact GitHub repository ID resolved with the reader token.
     required: false
   capsules-path:
     description: Downloaded signed capsule directory.

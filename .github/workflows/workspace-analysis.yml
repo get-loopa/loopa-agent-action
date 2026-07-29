@@ -1,10 +1,10 @@
-name: Loopa reusable workspace analysis
+name: Loopa reusable repository analysis
 
 on:
   workflow_call:
     inputs:
       workspace-id:
-        required: true
+        required: false
         type: string
       request-id:
         required: true
@@ -104,6 +104,19 @@ jobs:
           path: source
           fetch-depth: 0
           persist-credentials: false
+      - name: Resolve exact source identity
+        id: source-identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.reader.outputs.token }}
+          SOURCE_REPOSITORY: ${{ matrix.source.repository }}
+        run: |
+          repository_id="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${SOURCE_REPOSITORY}" | jq -r '.id')"
+          test "${repository_id}" != "null"
+          echo "repository-id=${repository_id}" >> "${GITHUB_OUTPUT}"
       - name: Extract signed repository capsule
         id: extract
         uses: ./.loopa-action
@@ -114,6 +127,7 @@ jobs:
           connection-id: ${{ matrix.source.connectionId }}
           source-root: source
           source-repository: ${{ matrix.source.repository }}
+          source-repository-id: ${{ steps.source-identity.outputs.repository-id }}
           loopa-api-url: ${{ inputs.loopa-api-url }}
       - name: Retain signed capsule for one day
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
