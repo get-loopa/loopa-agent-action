@@ -130,7 +130,7 @@ jobs:
           source-repository-id: ${{ steps.source-identity.outputs.repository-id }}
           loopa-api-url: ${{ inputs.loopa-api-url }}
       - name: Retain signed capsule for one day
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: loopa-capsule-${{ matrix.source.connectionId }}
           path: ${{ steps.extract.outputs.capsule-path }}
